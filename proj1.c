@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -64,7 +65,7 @@ int CheckDirOrFile(const char* path)
     if(S_ISREG(path_stat.st_mode)) return 1; // return 1 if regular file
     else
     {
-        if(S_ISDIR(path.st_mode)) return 2;
+        if(S_ISDIR(path_stat.st_mode)) return 2;
         else return -1;
     }
 }
@@ -111,7 +112,7 @@ int iterate_dir(char* pathname)
 
     
 
-    if((dir=opendir(dirent_pointer))==NULL)
+    if((dir=opendir(pathname))==NULL)
     {
         perror("could not open the directory");
         return -1;
@@ -122,7 +123,8 @@ int iterate_dir(char* pathname)
         char* newPath;
         strcpy(newPath, pathname); 
         strcat(newPath,"/");
-        strcat(newPath, dirent_pointer.d_name);
+        char* d_name=dirent_pointer->d_name;
+        strcat(newPath, d_name);
 
         int check=CheckDirOrFile(newPath);
 
@@ -131,51 +133,67 @@ int iterate_dir(char* pathname)
         else if(check==2) iterate_dir(newPath);
 
     }
+
+    return 0;
+}
+
+
+int child_process(char* pathname)
+{
+    int result=(iterate_dir(pathname));
+    if(result==0)
+       return 0;
+    else 
+        return -10;
 }
 
 int main(int argc, char* argv[])
 {
     printf("Hello Word\n");
+
+    if(argc==0)
+    {
+        perror("Usage: folder1_path folder2_path ...");
+        exit(0);
+    }
     
     char* pathname=argv[1];
+    printf("path= %S", argv[0]);
 
-    iterate_dir(pathname);
-
-
-
-    
-    
-    /*
-    int fin=open(pathname, O_RDONLY);
-    if(fin<0) 
+    if(argc==1)
     {
-        perror("  could not open the folder");
-        return -1;
+        
+        iterate_dir(pathname);
+        return 0;
+    }
+        
+    for(int i=1; i<argc; i++)
+    {
+        int pid=fork();
+        if(pid<0)
+        {
+            perror("the child was not born");
+            exit(-13);
+        }
+        if(pid==0)
+        {
+            int child_return=child_process(pathname);
+            if(child_return==0) 
+                exit(0);
+            else
+            {
+                perror("child error");
+                exit(child_return);
+            }
+        }
     }
 
-    struct stat folder_stat;
-    
-    if(stat(pathname, &folder_stat)<0)
+    for(int i=1; i<argc; i++)
     {
-        close(fin);
-        perror("stat crashed");
-        return -2;
+        int status;
+        wait(&status);
+        printf("status = %i ",WEXITSTATUS(status));
     }
-
-    int fout=open("Snap.txt", O_RDWR | O_CREAT);
-    if(fout<0)
-    {
-        perror(" could not create the Snap.txt file");
-        return -3;
-    }
-
-   ssize_t written=WriteInSnap(folder_stat, fout);
-    if(written<0) return written;
-    
-    
-
-    close(fout);
-    close(fin);*/
 
     return 0;
 }
