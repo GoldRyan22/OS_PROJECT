@@ -1,4 +1,4 @@
-
+#include<stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,25 +10,25 @@
 #include <dirent.h>
 #include <errno.h>
 
+
 ssize_t WriteInSnap(struct stat folder_stat, int fout)
 {
-
-    ssize_t written= write(fout, &folder_stat.st_ino, sizeof(long int)); // inode
+    ssize_t written = write(fout, &folder_stat.st_ino, sizeof(int)); // inode
     if (written==-1) return -4;
 
-    written =write(fout, &folder_stat.st_dev, sizeof(long int)); // dev id
+    written = write(fout, &folder_stat.st_dev, sizeof(int)); // dev id
     if (written==-1) return -4;
 
-    written =write(fout, &folder_stat.st_mode, sizeof(long int)); //mode
+    written =write(fout, &folder_stat.st_mode, sizeof(int)); //mode
     if (written==-1) return -4;
 
-    written =write(fout, &folder_stat.st_nlink, sizeof(long int)); //nlinks
+    written = write(fout, &folder_stat.st_nlink, sizeof(int)); //nlinks
     if (written==-1) return -4;
 
-    written =write(fout, &folder_stat.st_uid, sizeof(long int)); // uid
+    written =write(fout, &folder_stat.st_uid, sizeof(int)); // uid
     if (written==-1) return -4;
 
-    written =write(fout, &folder_stat.st_gid, sizeof(long int)); //gid
+    written = write(fout, &folder_stat.st_gid, sizeof(int)); //gid
     if (written==-1) return -4;
 
     written =write(fout, &folder_stat.st_blksize, sizeof(long int)); //blksize
@@ -37,10 +37,10 @@ ssize_t WriteInSnap(struct stat folder_stat, int fout)
     written =write(fout, &folder_stat.st_blocks, sizeof(long int)); //nr_blks
     if (written==-1) return -4;
 
-    written =write(fout, &folder_stat.st_mtime, sizeof(long int)); //mtime
+    written = write(fout, &folder_stat.st_mtime, sizeof(long int)); //mtime
     if (written==-1) return -4;
 
-    written =write(fout, &folder_stat.st_ctime, sizeof(long int)); //ctime
+    written = write(fout, &folder_stat.st_ctime, sizeof(long int)); //ctime
     if (written==-1) return -4;
 
     /*
@@ -72,7 +72,7 @@ int CheckDirOrFile(const char* path)
 
 int MakeSnap(char* pathname)
 {
-    int fin=open(pathname, O_RDONLY);
+    int fin=open(pathname, O_RDWR);
     if(fin<0) 
     {
         perror("  could not open the folder");
@@ -108,9 +108,6 @@ int iterate_dir(char* pathname)
 {
     struct dirent* dirent_pointer;
     DIR* dir;
-
-
-    
 
     if((dir=opendir(pathname))==NULL)
     {
@@ -158,7 +155,7 @@ int main(int argc, char* argv[])
     }
     
     char* pathname=argv[1];
-    printf("path= %S", argv[0]);
+    printf("path= %s", argv[0]);
 
     if(argc==1)
     {
