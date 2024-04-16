@@ -72,27 +72,37 @@ int CheckDirOrFile(const char* path)
 
 int MakeSnap(char* pathname)
 {
-    int fin=open(pathname, O_RDWR);
+
+    /*int fin=open(pathname, O_RDWR,  S_IRUSR | S_IWUSR );
+    printf("file path=%s\n", pathname);
+
     if(fin<0) 
     {
-        perror("  could not open the folder");
+        perror("  could not open the file");
         return -1;
     }
+    */
 
     struct stat folder_stat;
+   
     
     if(stat(pathname, &folder_stat)<0)
     {
-        close(fin);
+        //close(fin);
         perror("stat crashed");
         return -2;
     }
-
-    char* SnapName=malloc(sizeof(pathname)+5);
+    printf("the pathname in mksnap is=%s\n", pathname);   
+    char SnapName[50]="SNAP_";
+    strcat(SnapName, strchr(pathname, '/')+1);
+    strcat(SnapName, ".txt");
     
-
     //int fout=open("Snap.txt", O_RDWR | O_CREAT);
-    int fout=open(strcat(SnapName, ".txt"), O_RDWR | O_CREAT);
+
+    char newPath[100]=pathname;
+   
+    printf("\n%s\n", SnapName);
+    int fout=open(SnapName, O_RDWR | O_CREAT ,S_IRUSR | S_IWUSR);
     if(fout<0)
     {
         perror(" could not create the Snap.txt file");
@@ -106,9 +116,9 @@ int MakeSnap(char* pathname)
 
 int iterate_dir(char* pathname)
 {
+   
     struct dirent* dirent_pointer;
     DIR* dir;
-
     if((dir=opendir(pathname))==NULL)
     {
         perror("could not open the directory");
@@ -117,17 +127,26 @@ int iterate_dir(char* pathname)
 
     while((dirent_pointer=readdir(dir))!=NULL)
     {
-        char* newPath;
+        
+
+        char newPath[100];
         strcpy(newPath, pathname); 
         strcat(newPath,"/");
         char* d_name=dirent_pointer->d_name;
-        strcat(newPath, d_name);
+        if((strcmp(d_name,".")!=0) && (strcmp(d_name, "..")!=0))
+        {
+            strcat(newPath, d_name);
 
-        int check=CheckDirOrFile(newPath);
+            int check=CheckDirOrFile(newPath);
+            printf("it dir new path=%s\n", newPath);
+            if(check<=0) printf("not a reg file or directory");
+            else if(check==1) MakeSnap(newPath);
+        }
+        
 
-        if(check<=0) printf("not a reg file or directory");
-        else if(check==1) MakeSnap(newPath);
-        else if(check==2) iterate_dir(newPath);
+        
+        
+        //else if(check==2) iterate_dir(newPath);
 
     }
 
@@ -146,25 +165,25 @@ int child_process(char* pathname)
 
 int main(int argc, char* argv[])
 {
-    printf("Hello Word\n");
 
-    if(argc==0)
+
+    if(argc<=1)
     {
         perror("Usage: folder1_path folder2_path ...");
         exit(0);
     }
     
     char* pathname=argv[1];
-    printf("path= %s", argv[0]);
-
-    if(argc==1)
+    //printf("%d path=%s\n", argc, argv[1]);
+    //printf("i dont know");
+    if(argc==2)
     {
         
         iterate_dir(pathname);
         return 0;
     }
-        
-    for(int i=1; i<argc; i++)
+      /*  
+    for(int i=2; i<=argc; i++)
     {
         int pid=fork();
         if(pid<0)
@@ -184,13 +203,16 @@ int main(int argc, char* argv[])
             }
         }
     }
+    
 
     for(int i=1; i<argc; i++)
     {
         int status;
         wait(&status);
-        printf("status = %i ",WEXITSTATUS(status));
+        //printf(" status = %i \n",WEXITSTATUS(status));
     }
+    */
+
 
     return 0;
 }
