@@ -58,6 +58,32 @@ ssize_t WriteInSnap(struct stat folder_stat, int fout)
    return written;
 }
 
+int compareSnaps(int fd, char* origFile)
+{
+    struct stat orig_stat;
+    stat(origFile, &orig_stat);
+
+    int* buf;
+    read(fd, buf, sizeof(int));
+    if(*buf!=orig_stat.st_ino) return -1;
+
+    read(fd, buf, sizeof(int));
+    if(*buf!=orig_stat.st_dev) return -2;
+
+    read(fd, buf, sizeof(int));
+     if(*buf!=orig_stat.st_mode) return -3;
+
+    read(fd, buf, sizeof(int));
+    if(*buf!=orig_stat.st_nlink) return -4;
+
+    read(fd, buf, sizeof(int));
+    if(*buf!=orig_stat.st_uid) return -5;
+
+    read(fd, buf, sizeof(int));
+    if(*buf!=orig_stat.st_gid) return -6;
+
+    return 0;
+}
 int CheckDirOrFile(const char* path)
 {
     struct stat path_stat;
@@ -92,17 +118,26 @@ int MakeSnap(char* pathname)
         perror("stat crashed");
         return -2;
     }
-    printf("the pathname in mksnap is=%s\n", pathname);   
+    //printf("the pathname in mksnap is=%s\n", pathname);
+
     char SnapName[50]="SNAP_";
     strcat(SnapName, strchr(pathname, '/')+1);
     strcat(SnapName, ".txt");
     
     //int fout=open("Snap.txt", O_RDWR | O_CREAT);
 
-    char newPath[100]=pathname;
-   
-    printf("\n%s\n", SnapName);
-    int fout=open(SnapName, O_RDWR | O_CREAT ,S_IRUSR | S_IWUSR);
+    char newPath[100];
+    strncpy(newPath,pathname,abs(strlen(pathname)-strlen(SnapName))+1);
+    strcat(newPath,SnapName);
+
+    /*
+    printf("%s\n", newPath);
+    printf("%s\n", pathname);
+    printf("%s\n", SnapName);
+    */
+
+    
+    int fout=open(newPath, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     if(fout<0)
     {
         perror(" could not create the Snap.txt file");
@@ -110,7 +145,7 @@ int MakeSnap(char* pathname)
     }
 
     WriteInSnap(folder_stat, fout);
-
+    
     return 0;
 }
 
@@ -127,27 +162,48 @@ int iterate_dir(char* pathname)
 
     while((dirent_pointer=readdir(dir))!=NULL)
     {
-        
-
         char newPath[100];
         strcpy(newPath, pathname); 
         strcat(newPath,"/");
         char* d_name=dirent_pointer->d_name;
-        if((strcmp(d_name,".")!=0) && (strcmp(d_name, "..")!=0))
+        
+        if((strcmp(d_name,".")!=0) && (strcmp(d_name, "..")!=0) && (strncmp(d_name,"SNAP",4)!=0))
         {
+            //printf("%s\n", d_name);
             strcat(newPath, d_name);
 
             int check=CheckDirOrFile(newPath);
-            printf("it dir new path=%s\n", newPath);
+            //printf("it dir new path=%s\n", newPath);
             if(check<=0) printf("not a reg file or directory");
-            else if(check==1) MakeSnap(newPath);
+            else if(check==1)
+            {
+
+                //printf("%s", newPath);
+                char checkSnap[100]="";
+                strncpy(checkSnap,newPath, abs(strlen(newPath)-strlen(d_name)));
+                strcat(checkSnap, "SNAP_");
+                strcat(checkSnap, d_name);
+                strcat(checkSnap, ".txt");
+                //printf("\n%s \n", checkSnap);
+
+                int compare=open(checkSnap, O_RDWR, S_IRUSR | S_IWUSR);
+
+                if(compare!=-1)
+                {
+                   int result = compareSnaps(compare, newPath);
+                   if(result!=0)
+                   {
+                        printf("there was a change\n");
+                        MakeSnap(newPath);
+                   }
+                }
+                else
+                {
+                    MakeSnap(newPath);
+                }
+                
+            } //else if(check==2) iterate_dir(newPath);
         }
-        
-
-        
-        
-        //else if(check==2) iterate_dir(newPath);
-
     }
 
     return 0;
@@ -167,6 +223,7 @@ int main(int argc, char* argv[])
 {
 
 
+    //printf(" rgc==%d\n", argc);
     if(argc<=1)
     {
         perror("Usage: folder1_path folder2_path ...");
@@ -179,11 +236,12 @@ int main(int argc, char* argv[])
     if(argc==2)
     {
         
+        
         iterate_dir(pathname);
         return 0;
     }
-      /*  
-    for(int i=2; i<=argc; i++)
+        
+    for(int i=1; i<argc; i++)
     {
         int pid=fork();
         if(pid<0)
@@ -193,7 +251,7 @@ int main(int argc, char* argv[])
         }
         if(pid==0)
         {
-            int child_return=child_process(pathname);
+            int child_return=child_process(argv[i]);
             if(child_return==0) 
                 exit(0);
             else
@@ -211,8 +269,6 @@ int main(int argc, char* argv[])
         wait(&status);
         //printf(" status = %i \n",WEXITSTATUS(status));
     }
-    */
-
-
+    
     return 0;
 }
