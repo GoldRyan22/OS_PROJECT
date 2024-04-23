@@ -118,7 +118,7 @@ int MakeSnap(char* pathname)
         perror("stat crashed");
         return -2;
     }
-    //printf("the pathname in mksnap is=%s\n", pathname);
+    printf("the pathname in mksnap is=%s\n", pathname);
 
     char SnapName[50]="SNAP_";
     strcat(SnapName, strchr(pathname, '/')+1);
@@ -126,24 +126,24 @@ int MakeSnap(char* pathname)
     
     //int fout=open("Snap.txt", O_RDWR | O_CREAT);
 
-    char newPath[100];
-    strncpy(newPath,pathname,abs(strlen(pathname)-strlen(SnapName))+1);
+    char newPath[100]="";
+    
+    strncpy(newPath,pathname,abs(strlen(pathname)-strlen(SnapName)+5+4));
     strcat(newPath,SnapName);
 
     /*
-    printf("%s\n", newPath);
     printf("%s\n", pathname);
     printf("%s\n", SnapName);
+    printf("%s\n\n", newPath);
     */
 
-    
     int fout=open(newPath, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     if(fout<0)
     {
         perror(" could not create the Snap.txt file");
         return -3;
     }
-
+    
     WriteInSnap(folder_stat, fout);
     
     return 0;
@@ -212,11 +212,25 @@ int iterate_dir(char* pathname)
 
 int child_process(char* pathname)
 {
-    int result=(iterate_dir(pathname));
-    if(result==0)
-       return 0;
-    else 
-        return -10;
+
+    if(access(pathname, F_OK | R_OK | W_OK))
+    {
+        int result=(iterate_dir(pathname));
+        if(result==0)
+            return 0;
+        else 
+            return -10;
+    }
+    else
+    {
+        int pipe1[2];
+        pipe(pipe1);
+        int pid=fork();
+    
+        int status;
+        wait(&status);
+
+    }
 }
 
 int main(int argc, char* argv[])
@@ -229,10 +243,11 @@ int main(int argc, char* argv[])
         perror("Usage: folder1_path folder2_path ...");
         exit(0);
     }
-    
+    /*
     char* pathname=argv[1];
     //printf("%d path=%s\n", argc, argv[1]);
     //printf("i dont know");
+    
     if(argc==2)
     {
         
@@ -240,7 +255,7 @@ int main(int argc, char* argv[])
         iterate_dir(pathname);
         return 0;
     }
-        
+    */
     for(int i=1; i<argc; i++)
     {
         int pid=fork();
