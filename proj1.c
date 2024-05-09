@@ -84,6 +84,7 @@ int compareSnaps(int fd, char* origFile)
 
     return 0;
 }
+
 int CheckDirOrFile(const char* path)
 {
     struct stat path_stat;
@@ -118,10 +119,10 @@ int MakeSnap(char* pathname)
         perror("stat crashed");
         return -2;
     }
-    printf("the pathname in mksnap is=%s\n", pathname);
+    //printf("the pathname in mksnap is=%s\n", pathname);
 
     char SnapName[50]="SNAP_";
-    strcat(SnapName, strchr(pathname, '/')+1);
+    strcat(SnapName, strrchr(pathname, '/')+1);
     strcat(SnapName, ".txt");
     
     //int fout=open("Snap.txt", O_RDWR | O_CREAT);
@@ -131,11 +132,11 @@ int MakeSnap(char* pathname)
     strncpy(newPath,pathname,abs(strlen(pathname)-strlen(SnapName)+5+4));
     strcat(newPath,SnapName);
 
-    /*
+    
     printf("%s\n", pathname);
     printf("%s\n", SnapName);
     printf("%s\n\n", newPath);
-    */
+    
 
     int fout=open(newPath, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     if(fout<0)
@@ -156,12 +157,44 @@ int iterate_dir(char* pathname)
     DIR* dir;
     if((dir=opendir(pathname))==NULL)
     {
-        perror("could not open the directory");
+        perror("could not open the directory\n");
         return -1;
     }
 
+    int pfd[2];
+
+    if(pipe(pfd)<0)
+    {
+        perror("pipe creation failed\n");
+        exit(-15);
+    }
+    close(pfd[0]);
+    close(pfd[1]);
+
+    int pid=fork();
+    if(pid<0)
+    {
+        perror("child creation error\n");
+        exit(-16);
+    }
+    if(pid==0)
+    {
+        //printf("pathname in chidl=%s\n", pathname);
+        execlp("./script.sh", "script", pathname, NULL);
+       // execlp("./script2.sh", "script2", NULL); //GOODDDDD
+        printf("exec error\n");
+        exit(-17);
+    }
+
+    int status;
+    wait(&status);
+
+    //printf("pathname=%s\n", pathname);
+
+
     while((dirent_pointer=readdir(dir))!=NULL)
     {
+
         char newPath[100];
         strcpy(newPath, pathname); 
         strcat(newPath,"/");
@@ -175,10 +208,9 @@ int iterate_dir(char* pathname)
             int check=CheckDirOrFile(newPath);
             //printf("it dir new path=%s\n", newPath);
             if(check<=0) printf("not a reg file or directory");
-            else if(check==1)
+            else if(check==1) // if reg file
             {
-
-                //printf("%s", newPath);
+                //printf("%s\n", newPath);
                 char checkSnap[100]="";
                 strncpy(checkSnap,newPath, abs(strlen(newPath)-strlen(d_name)));
                 strcat(checkSnap, "SNAP_");
@@ -197,12 +229,20 @@ int iterate_dir(char* pathname)
                         MakeSnap(newPath);
                    }
                 }
-                else
+                else // if dir
                 {
                     MakeSnap(newPath);
                 }
                 
-            } //else if(check==2) iterate_dir(newPath);
+            } 
+            else
+            { 
+                if(check==2) 
+                {
+                    //printf("the nnew dir path is %s \n", newPath);
+                    iterate_dir(newPath);
+                }
+            }      
         }
     }
 
@@ -212,26 +252,10 @@ int iterate_dir(char* pathname)
 
 int child_process(char* pathname)
 {
+    int result=(iterate_dir(pathname));
+} 
 
-    if(access(pathname, F_OK | R_OK | W_OK))
-    {
-        int result=(iterate_dir(pathname));
-        if(result==0)
-            return 0;
-        else 
-            return -10;
-    }
-    else
-    {
-        int pipe1[2];
-        pipe(pipe1);
-        int pid=fork();
-    
-        int status;
-        wait(&status);
 
-    }
-}
 
 int main(int argc, char* argv[])
 {
