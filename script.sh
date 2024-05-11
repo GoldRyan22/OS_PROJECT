@@ -1,2 +1,2 @@
 #! /usr/bin/bash
-ls -l $1 | egrep "^-----w----" | egrep -o "[a-zA-Z,.,-,_,/,\]+$"
+ls -l $1 | egrep "^----------" | egrep -o "[a-zA-Z,.,-,_,/,\]+$"
